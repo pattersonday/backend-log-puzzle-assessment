@@ -18,7 +18,7 @@ en-US; rv:1.8.1.6) Gecko/20070725 Firefox/2.0.0.6"
 
 """
 
-__author__ = 'pattersonday w/guidance from astephens91'
+__author__ = 'pattersonday w/guidance from astephens91 and a magical man in a unicorn suit named steve' # noqa
 
 import os
 import re
@@ -33,15 +33,18 @@ def read_urls(filename):
     Screens out duplicate urls and returns the urls sorted into
     increasing order."""
 
-    domain = 'http://' + filename.split('_')[1]
-    result = []
-    find_all_img = re.findall(r'GET (\/.*?\.jpg)', open(filename).read())
+    image_list = []
 
-    for img in find_all_img:
-        result.append(domain + img)
-    sorted_list = sorted(result, key=lambda x: x.rsplit('-', 1)[-1])
+    with open(filename) as file:
+        for line in file:
+            images = re.findall(r"\S*/puzzle\S*.jpg", line)
+            if images and images[0] not in image_list:
+                image_list.append(images[0])
+    
+    image_list = set(image_list)
+    image_list.sort(key=lambda item: re.search(r'\w[^-]*$', item).group(0))
+    return image_list
 
-    return sorted_list
 
 
 def download_images(img_urls, dest_dir):
@@ -65,7 +68,7 @@ def download_images(img_urls, dest_dir):
         urllib.urlretrieve(url, os.getcwd() + '/' + local_filename)
         result.append("<img src={}>".format(local_filename))
         count += 1
-    created_html = open('index.html', 'w')
+    created_html = with open('index.html', 'w')
     created_html.write("<html><body>{0}</body></html>".format(''.join(result)))
 
 
@@ -92,9 +95,9 @@ def main(args):
     img_urls = read_urls(parsed_args.logfile)
 
     if parsed_args.todir:
-        download_images(img_urls, parsed_args.todir)
+        download_images(image_list, parsed_args.todir)
     else:
-        print('\n'.join(img_urls))
+        print('\n'.join(image_list))
 
 
 if __name__ == '__main__':
