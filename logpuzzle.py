@@ -17,14 +17,13 @@ HTTP/1.0" 302 528 "-" "Mozilla/5.0 (Windows; U; Windows NT 5.1;
 en-US; rv:1.8.1.6) Gecko/20070725 Firefox/2.0.0.6"
 
 """
-
-__author__ = 'pattersonday w/guidance from astephens91 and a magical man in a unicorn suit named steve' # noqa
-
 import os
 import re
 import sys
 import urllib
 import argparse
+
+__author__ = 'pattersonday w/guidance from astephens91'
 
 
 def read_urls(filename):
@@ -33,18 +32,18 @@ def read_urls(filename):
     Screens out duplicate urls and returns the urls sorted into
     increasing order."""
 
-    image_list = []
+    image_url_list = []
+    current_image_url = 'http://' + filename[(filename.find('_') + 1):]
 
     with open(filename) as file:
         for line in file:
-            images = re.findall(r"\S*/puzzle\S*.jpg", line)
-            if images and images[0] not in image_list:
-                image_list.append(images[0])
-    
-    image_list = set(image_list)
-    image_list.sort(key=lambda item: re.search(r'\w[^-]*$', item).group(0))
-    return image_list
+            image_path = re.search(r"\S*/puzzle\S*.jpg", line)
+            if image_path:
+                image_url_list.append(current_image_url + image_path.group(0))
 
+    image_url_list = list(set(image_url_list))
+    image_url_list.sort(key=lambda item: re.search(r'\w[^-]*$', item).group(0))
+    return image_url_list
 
 
 def download_images(img_urls, dest_dir):
@@ -56,20 +55,24 @@ def download_images(img_urls, dest_dir):
     Creates the directory if necessary.
     """
 
-    result = []
-    count = 0
-    if not os.path.exists(dest_dir):
-        os.makedirs(dest_dir)
-
+    if os.path.isdir(dest_dir):
+        return
+    os.mkdir(dest_dir)
     os.chdir(dest_dir)
 
-    for url in img_urls:
-        local_filename = 'img' + str(count)
-        urllib.urlretrieve(url, os.getcwd() + '/' + local_filename)
-        result.append("<img src={}>".format(local_filename))
-        count += 1
-    created_html = with open('index.html', 'w')
-    created_html.write("<html><body>{0}</body></html>".format(''.join(result)))
+    retrieved_images = []
+
+    for line, path in enumerate(img_urls):
+        urllib.urlretrieve(path, 'img{}.jpg'.format(line))
+        retrieved_images.append('img{}.jpg'.format(line))
+        print(path)
+
+    with open('index.html', 'w') as html_file:
+        html_file.write("<html><body>\n")
+        for img in retrieved_images:
+            html_file.write('<img src="{}">'.format(img))
+        html_file.write('</body></html>')
+        print(os.getcwd())
 
 
 def create_parser():
@@ -85,19 +88,18 @@ def create_parser():
 def main(args):
     """Parse args, scan for urls, get images from urls"""
     parser = create_parser()
-
     if not args:
         parser.print_usage()
         sys.exit(1)
 
     parsed_args = parser.parse_args(args)
 
-    img_urls = read_urls(parsed_args.logfile)
+    img_url_list = read_urls(parsed_args.logfile)
 
     if parsed_args.todir:
-        download_images(image_list, parsed_args.todir)
+        download_images(img_url_list, parsed_args.todir)
     else:
-        print('\n'.join(image_list))
+        print('\n'.join(img_url_list))
 
 
 if __name__ == '__main__':
