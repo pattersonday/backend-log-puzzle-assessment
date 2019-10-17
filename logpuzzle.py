@@ -12,15 +12,18 @@ http://code.google.com/edu/languages/google-python-class/
 Given an apache logfile, find the puzzle urls and download the images.
 
 Here's what a puzzle url looks like:
-10.254.254.28 - - [06/Aug/2007:00:13:48 -0700] "GET /~foo/puzzle-bar-aaab.jpg HTTP/1.0" 302 528 "-" "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.6) Gecko/20070725 Firefox/2.0.0.6"
+10.254.254.28 - - [06/Aug/2007:00:13:48 -0700] "GET /~foo/puzzle-bar-aaab.jpg
+HTTP/1.0" 302 528 "-" "Mozilla/5.0 (Windows; U; Windows NT 5.1;
+en-US; rv:1.8.1.6) Gecko/20070725 Firefox/2.0.0.6"
 
 """
-
 import os
 import re
 import sys
 import urllib
 import argparse
+
+__author__ = 'pattersonday w/guidance from astephens91'
 
 
 def read_urls(filename):
@@ -28,8 +31,19 @@ def read_urls(filename):
     extracting the hostname from the filename itself.
     Screens out duplicate urls and returns the urls sorted into
     increasing order."""
-    # +++your code here+++
-    pass
+
+    image_url_list = []
+    current_image_url = 'http://' + filename[(filename.find('_') + 1):]
+
+    with open(filename) as file:
+        for line in file:
+            image_path = re.search(r"\S*/puzzle\S*.jpg", line)
+            if image_path:
+                image_url_list.append(current_image_url + image_path.group(0))
+
+    image_url_list = list(set(image_url_list))
+    image_url_list.sort(key=lambda item: re.search(r'\w[^-]*$', item).group(0))
+    return image_url_list
 
 
 def download_images(img_urls, dest_dir):
@@ -40,14 +54,32 @@ def download_images(img_urls, dest_dir):
     with an img tag to show each local image file.
     Creates the directory if necessary.
     """
-    # +++your code here+++
-    pass
+
+    if os.path.isdir(dest_dir):
+        return
+    os.mkdir(dest_dir)
+    os.chdir(dest_dir)
+
+    retrieved_images = []
+
+    for line, path in enumerate(img_urls):
+        urllib.urlretrieve(path, 'img{}.jpg'.format(line))
+        retrieved_images.append('img{}.jpg'.format(line))
+        print(path)
+
+    with open('index.html', 'w') as html_file:
+        html_file.write("<html><body>\n")
+        for img in retrieved_images:
+            html_file.write('<img src="{}">'.format(img))
+        html_file.write('</body></html>')
+        print(os.getcwd())
 
 
 def create_parser():
     """Create an argument parser object"""
     parser = argparse.ArgumentParser()
-    parser.add_argument('-d', '--todir',  help='destination directory for downloaded images')
+    parser.add_argument('-d', '--todir',
+                        help='destination directory for downloaded images')
     parser.add_argument('logfile', help='apache logfile to extract urls from')
 
     return parser
@@ -56,19 +88,18 @@ def create_parser():
 def main(args):
     """Parse args, scan for urls, get images from urls"""
     parser = create_parser()
-
     if not args:
         parser.print_usage()
         sys.exit(1)
 
     parsed_args = parser.parse_args(args)
 
-    img_urls = read_urls(parsed_args.logfile)
+    img_url_list = read_urls(parsed_args.logfile)
 
     if parsed_args.todir:
-        download_images(img_urls, parsed_args.todir)
+        download_images(img_url_list, parsed_args.todir)
     else:
-        print('\n'.join(img_urls))
+        print('\n'.join(img_url_list))
 
 
 if __name__ == '__main__':
